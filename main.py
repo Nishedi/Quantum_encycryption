@@ -20,32 +20,24 @@ from qiskit.circuit.library import UnitaryGate
 
 
 def prepare_rsa():
-    """Przygotowuje klucze RSA dla modułu N = 15 (p=3, q=5)."""
     p, q = 3, 11
     N = p * q  # N = 15
-    phi = (p - 1) * (q - 1)  # phi = 8
+    phi = (p - 1) * (q - 1)
     e = 3
-    d = pow(e, -1, phi)  # d = 3 (klucz prywatny)
+    d = pow(e, -1, phi)
     return N, e, d, p, q
 
 
 def encrypt_rsa(msg: int, e: int, N: int) -> int:
-    """Szyfruje wiadomość: C = M^e mod N"""
     return pow(msg, e, N)
 
 
 def decrypt_rsa(ciphertext: int, d: int, N: int) -> int:
-    """Deszyfruje wiadomość: M = C^d mod N"""
     return pow(ciphertext, d, N)
 
 
 def c_amodN(a: int, power: int, N: int) -> QuantumCircuit:
-    """
-    Tworzy uniwersalną bramkę kontrolowanej potęgi modularnej: a^(2^power) mod N
-    dla dowolnej liczby N z wykorzystaniem macierzy UnitaryGate.
-    """
     n = math.ceil(math.log2(N + 1))
-    # Poprawne potęgowanie: val = a^(2^power) mod N
     val = pow(a, 2 ** power, N)
 
     dim = 2 ** n
@@ -66,7 +58,6 @@ def c_amodN(a: int, power: int, N: int) -> QuantumCircuit:
 
 
 def qft_dagger(n: int) -> QuantumCircuit:
-    """Odwrotna Kwantowa Transformata Fouriera (QFT†)."""
     qc = QuantumCircuit(n)
     for qubit in range(n // 2):
         qc.swap(qubit, n - qubit - 1)
@@ -79,26 +70,20 @@ def qft_dagger(n: int) -> QuantumCircuit:
 
 
 def build_shor_circuit(N: int, a: int) -> QuantumCircuit:
-    """Tworzy obwód Shora dla dowolnego N oraz podanej podstawy 'a'."""
     n_count = math.ceil(math.log2(N + 1))
     qr_up = QuantumRegister(n_count, name='up')
     qr_down = QuantumRegister(n_count, name='down')
     cr = ClassicalRegister(n_count, name='meas')
     qc = QuantumCircuit(qr_up, qr_down, cr)
 
-    # 1. Superpozycja w rejestrze zliczającym
     for q in range(n_count):
         qc.h(qr_up[q])
 
-    # 2. Inicjalizacja rejestru roboczego na stan |1>
     qc.x(qr_down[0])
 
-    # 3. Kaskada kontrolowanych operacji potęgowania modularnego
     for q in range(n_count):
-        # Przekazujemy wskaźnik potęgi 'q' (c_amodN wyliczy a^(2^q) mod N)
         qc.append(c_amodN(a, q, N), [qr_up[q]] + qr_down[:])
 
-    # 4. Odwrotna QFT na rejestrze zliczającym i pomiar
     qc.append(qft_dagger(n_count), qr_up)
     qc.measure(qr_up, cr)
 
@@ -106,7 +91,6 @@ def build_shor_circuit(N: int, a: int) -> QuantumCircuit:
 
 
 def create_synthetic_odra5_noise():
-    """Generuje syntetyczny model szumu procesora Odra 5."""
     nm = NoiseModel()
     p1 = 0.001
     p2 = 0.012
@@ -127,7 +111,6 @@ def create_synthetic_odra5_noise():
 
 
 def extend_odra_noise_model(base_noise_model: NoiseModel, base_coupling_list: list, n_qubits: int, base_n: int = 5):
-    """Rozszerza model szumu z 5 kubitów na n_qubits."""
     if n_qubits <= base_n:
         return base_noise_model, base_coupling_list
 
@@ -170,7 +153,6 @@ def extend_odra_noise_model(base_noise_model: NoiseModel, base_coupling_list: li
 
 
 def get_odra5_backend(n_qubits: int = 8):
-    """Tworzy symulator Odry 5 skalowany do n_qubits."""
     noise_model = create_synthetic_odra5_noise()
     base_coupling_list = [[0, 2], [1, 2], [2, 3], [2, 4], [2, 0], [2, 1], [3, 2], [4, 2]]
 
@@ -186,7 +168,6 @@ def get_odra5_backend(n_qubits: int = 8):
 
 
 def analyze_quantum_counts(counts: dict, N: int, n_count: int, a: int, label: str):
-    """Analizuje zliczenia z symulatora kwantowego i próbuje wyznaczyć p i q."""
     print(f"\n--- Analiza wyników: {label} ---")
     sorted_counts = sorted(counts.items(), key=lambda x: x[1], reverse=True)
 
@@ -217,10 +198,6 @@ def analyze_quantum_counts(counts: dict, N: int, n_count: int, a: int, label: st
 
 
 def run_shor_attack_dual(N: int, ciphertext: int, e: int, msg_original: int):
-    """
-    Realizacja ataku Shora na DWÓCH SYMULATORACH JEDNOCZEŚNIE:
-    1. Losowanie 'a' -> 2. Obwód kwantowy -> 3. Uruchomienie na Idealnym i Szumowym -> 4. Porównanie i wyliczanie czynników.
-    """
     n_count = math.ceil(math.log2(N + 1))
     sim_ideal = AerSimulator()
     sim_noisy = get_odra5_backend(n_qubits=2 * n_count)
@@ -228,14 +205,9 @@ def run_shor_attack_dual(N: int, ciphertext: int, e: int, msg_original: int):
     attempt = 1
     tested_a = set()
 
-    print(f"\n" + "=" * 75)
-    print(f" ROZPOCZYNANIE ATAKU SHORA NA N = {N} (IDEALNY VS SZUMOWY ODRA 5)")
-    print("=" * 75)
 
     while True:
-        print(f"\n==================== [PROBA #{attempt}] ====================")
 
-        # 1. Klasyczne wylosowanie liczby 'a'
         available_a = [candidate for candidate in range(2, N) if candidate not in tested_a]
         if not available_a:
             print("[BŁĄD] Wypróbowano wszystkie możliwe wartości 'a'.")
@@ -243,47 +215,37 @@ def run_shor_attack_dual(N: int, ciphertext: int, e: int, msg_original: int):
 
         a = random.choice(available_a)
         tested_a.add(a)
-        print(f"[KLASYCZNIE] Wylosowano a = {a}")
+        print(f"a = {a}")
 
-        # 2. Klasyczny warunek: NWD(a, N)
         gcd_val = math.gcd(a, N)
         if gcd_val > 1:
-            print(f"[KLASYCZNE SZCZĘŚCIE!] NWD({a}, {N}) = {gcd_val} > 1!")
-            print(f" -> Czynniki znalezione klasycznie bez komputera kwantowego: p = {gcd_val}, q = {N // gcd_val}")
+            print(f"NWD({a}, {N}) = {gcd_val} > 1!")
+            print(f"Czynniki znalezione klasycznie bez komputera kwantowego: p = {gcd_val}, q = {N // gcd_val}")
             break
 
-        print(f"[KLASYCZNIE] NWD({a}, {N}) = 1. Uruchamiamy obwód kwantowy na obu symulatorach...")
+        print(f" NWD({a}, {N}) = 1. Uruchamiamy obwód kwantowy na obu symulatorach...")
 
-        # 3. Tworzenie obwodu kwantowego
         circuit = build_shor_circuit(N=N, a=a)
 
-        # A) Wykonanie na symulatorze IDEALNYM
         transpiled_ideal = transpile(circuit, sim_ideal)
         counts_ideal = sim_ideal.run(transpiled_ideal, shots=1024).result().get_counts()
 
-        # B) Wykonanie na symulatorze SZUMOWYM (Odra 5)
         transpiled_noisy = transpile(circuit, sim_noisy)
         counts_noisy = sim_noisy.run(transpiled_noisy, shots=1024).result().get_counts()
 
-        # 4. Analiza wyników kwantowych
         p_ideal, q_ideal, r_ideal = analyze_quantum_counts(counts_ideal, N, n_count, a, "SYMULATOR IDEALNY")
         p_noisy, q_noisy, r_noisy = analyze_quantum_counts(counts_noisy, N, n_count, a, "SZUMOWY (ODRA 5)")
 
-        # 5. Generowanie wykresu porównawczego dla tej próby
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
         plot_histogram(counts_ideal, ax=ax1, color='midnightblue', title=f"Idealny Symulator (Próba #{attempt}, a={a})")
         plot_histogram(counts_noisy, ax=ax2, color='crimson', title=f"FakeOdraRealTime z Szumem (Próba #{attempt}, a={a})")
         plt.tight_layout()
         # plt.show()
 
-        # Sprawdzamy, czy udało się złamać RSA na którymkolwiek z symulatorów
         if p_ideal:
             p_final = p_ideal
             q_final = q_ideal
 
-            print(f"\n==================================================")
-            print(f" SUKCES ATAKU W PROBIE #{attempt} (dla a = {a}) i symulatora idealnego!")
-            print(f"==================================================")
 
             phi_cracked = (p_final - 1) * (q_final - 1)
             d_cracked = pow(e, -1, phi_cracked)
@@ -300,9 +262,7 @@ def run_shor_attack_dual(N: int, ciphertext: int, e: int, msg_original: int):
             p_final = p_noisy
             q_final = q_noisy
 
-            print(f"\n==================================================")
             print(f" SUKCES ATAKU W PROBIE #{attempt} (dla a = {a})! i symulatora z szumami")
-            print(f"==================================================")
 
             phi_cracked = (p_final - 1) * (q_final - 1)
             d_cracked = pow(e, -1, phi_cracked)
@@ -323,13 +283,10 @@ def run_shor_attack_dual(N: int, ciphertext: int, e: int, msg_original: int):
 
 
 def main():
-    M = 13  # Tajna wiadomość
+    M = 13
     N, e, d_real, p_real, q_real = prepare_rsa()
     ciphertext = encrypt_rsa(M, e, N)
 
-    print("=" * 75)
-    print(" ZAUTOMATYZOWANA PĘTLA SHORA: IDEALNY VS NISQ (ODRA 5)")
-    print("=" * 75)
     print(f"• Parametry RSA: N = {N} (p={p_real}, q={q_real}) | e = {e} | d_tajne = {d_real}")
     print(f"• Tajna wiadomość M = {M}")
     print(f"• Zaszyfrowany kryptogram C = {ciphertext}")
