@@ -1,0 +1,1 @@
+C:\conda\condabin\conda.bat activate qml_final
