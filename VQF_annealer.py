@@ -91,8 +91,8 @@ def main():
     q_tab_20 = [613169]
     q_tab_30 = [1016990027]
     q_tab_40 = [694802246617]
-    p_tab = p_tab_30
-    q_tab = q_tab_30
+    p_tab = p_tab_20
+    q_tab = q_tab_20
     N=p_tab[0]*q_tab[0]
 
     p,q = factor_with_gurobi_bits(N=N, verbose=verbose)
@@ -100,11 +100,11 @@ def main():
         if p*q != N:
             print(f"\n\nTest N = {N}", end=" ")
             print(f" - Incorrect: p={p}, q={q}, p*q={p*q}")
-            print(f"{p_tab[j],q_tab[i]}")
+            print(f"{p_tab[0],q_tab[0]}")
         elif p*q == N and verbose:
             print(f"\n\nTest  N = {N}", end=" ")
             print(f" - Correct: p={p}, q={q}, p*q={p*q}")
-            print(f"{p_tab[j],q_tab[i]}")
+            print(f"{p_tab[0],q_tab[0]}")
     else:
         print(f"\n\nTest N = {N}", end=" ")
         print(" - No optimal solution found.")
