@@ -217,10 +217,10 @@ def factorize_N_quantum(N: int, noisy: bool = True):
             p_ideal, q_ideal, _ = analyze_quantum_counts(counts_ideal, N, n_count, a, "SYMULATOR IDEALNY")
         if noisy:
             print("Noisy try")
-            # transpiled_noisy = transpile(circuit, sim_noisy)
-            # counts_noisy = sim_noisy.run(transpiled_noisy, shots=1024).result().get_counts()
+            transpiled_noisy = transpile(circuit, sim_noisy)
+            counts_noisy = sim_noisy.run(transpiled_noisy, shots=1024).result().get_counts()
             # print(counts_noisy)
-            counts_noisy = {'1000': 470, '0000': 426, '1010': 11, '0001': 12, '0101': 5, '1110': 9, '0010': 20, '1100': 23, '0100': 25, '0110': 7, '1001': 12, '1011': 1, '1101': 3}
+            # counts_noisy = {'1000': 470, '0000': 426, '1010': 11, '0001': 12, '0101': 5, '1110': 9, '0010': 20, '1100': 23, '0100': 25, '0110': 7, '1001': 12, '1011': 1, '1101': 3}
 
             p_noisy, q_noisy, _ = analyze_quantum_counts(counts_noisy, N, n_count, a, "SZUMOWY (ODRA 5)")
 
