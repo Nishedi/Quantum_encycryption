@@ -11,6 +11,7 @@ from qiskit_aer.noise import NoiseModel, ReadoutError, depolarizing_error
 from qiskit.transpiler import CouplingMap
 from qiskit.visualization import plot_histogram
 from qiskit.circuit.library import UnitaryGate
+from simulators import get_odra5_backend, get_iqm_backend
 
 
 def c_amodN(a: int, power: int, N: int) -> QuantumCircuit:
@@ -67,84 +68,6 @@ def build_shor_circuit(N: int, a: int) -> QuantumCircuit:
     return qc
 
 
-def create_synthetic_odra5_noise():
-    nm = NoiseModel()
-    p1 = 0.001
-    p2 = 0.012
-    p_ro = 0.018
-
-    for q in range(5):
-        ro_err = ReadoutError([[1 - p_ro, p_ro], [p_ro, 1 - p_ro]])
-        nm.add_readout_error(ro_err, [q])
-        g_err = depolarizing_error(p1, 1)
-        nm.add_quantum_error(g_err, ['u1', 'u2', 'u3', 'rz', 'sx', 'x'], [q])
-
-    edges = [[0, 2], [1, 2], [2, 3], [2, 4], [2, 0], [2, 1], [3, 2], [4, 2]]
-    for edge in edges:
-        g2_err = depolarizing_error(p2, 2)
-        nm.add_quantum_error(g2_err, ['cx', 'cz'], edge)
-
-    return nm
-
-
-def extend_odra_noise_model(base_noise_model: NoiseModel, base_coupling_list: list, n_qubits: int, base_n: int = 5):
-    """Skaluje model szumu Odry 5 do wymaganej liczby kubitów."""
-    if n_qubits <= base_n:
-        return base_noise_model, base_coupling_list
-
-    extended_nm = copy.deepcopy(base_noise_model)
-    extended_coupling = list(base_coupling_list)
-
-    donor_map = {q: random.randint(0, base_n - 1) for q in range(base_n, n_qubits)}
-
-    for new_q, donor_q in donor_map.items():
-        hub = 2 if 2 < base_n else donor_q
-        extended_coupling.append([new_q, hub])
-        extended_coupling.append([hub, new_q])
-
-    if hasattr(base_noise_model, '_readout_errors'):
-        for q_tuple, ro_err in base_noise_model._readout_errors.items():
-            for new_q, donor_q in donor_map.items():
-                if q_tuple == (donor_q,) or q_tuple == donor_q:
-                    extended_nm.add_readout_error(ro_err, [new_q])
-
-    if hasattr(base_noise_model, '_local_quantum_errors'):
-        for op, q_dict in base_noise_model._local_quantum_errors.items():
-            if isinstance(q_dict, dict):
-                for q_tuple, qerror in q_dict.items():
-                    if len(q_tuple) == 1:
-                        src_q = q_tuple[0]
-                        for new_q, donor_q in donor_map.items():
-                            if src_q == donor_q:
-                                extended_nm.add_quantum_error(qerror, op, [new_q])
-                    elif len(q_tuple) == 2:
-                        q1, q2 = q_tuple
-                        hub = 2 if base_n > 2 else 0
-                        for new_q, donor_q in donor_map.items():
-                            target_donor = donor_q if donor_q != hub else 0
-                            if (q1, q2) == (target_donor, hub):
-                                extended_nm.add_quantum_error(qerror, op, [new_q, hub])
-                            elif (q1, q2) == (hub, target_donor):
-                                extended_nm.add_quantum_error(qerror, op, [hub, new_q])
-
-    return extended_nm, extended_coupling
-
-
-def get_odra5_backend(n_qubits: int = 8):
-    noise_model = create_synthetic_odra5_noise()
-    base_coupling_list = [[0, 2], [1, 2], [2, 3], [2, 4], [2, 0], [2, 1], [3, 2], [4, 2]]
-
-    extended_nm, extended_coupling_list = extend_odra_noise_model(
-        noise_model, base_coupling_list, n_qubits=n_qubits, base_n=5
-    )
-
-    coupling_map = CouplingMap(extended_coupling_list)
-    noisy_sim = AerSimulator(noise_model=extended_nm)
-    noisy_sim.set_options(noise_model=extended_nm, coupling_map=coupling_map)
-
-    return noisy_sim
-
-
 def analyze_quantum_counts(counts: dict, N: int, n_count: int, a: int, label: str):
     sorted_counts = sorted(counts.items(), key=lambda x: x[1], reverse=True)
     for bitstring, count in sorted_counts:
@@ -179,8 +102,8 @@ def analyze_quantum_counts(counts: dict, N: int, n_count: int, a: int, label: st
 def factorize_N_quantum(N: int, noisy: bool = True):
     n_count = math.ceil(math.log2(N + 1))
     sim_ideal = AerSimulator()
-    sim_noisy = get_odra5_backend(n_qubits=2 * n_count)
-
+    # sim_noisy = get_odra5_backend(n_qubits=2 * n_count)
+    sim_noisy = get_iqm_backend("calibration_data.json")
     attempt = 1
     tested_a = set()
 
@@ -217,7 +140,7 @@ def factorize_N_quantum(N: int, noisy: bool = True):
             p_ideal, q_ideal, _ = analyze_quantum_counts(counts_ideal, N, n_count, a, "SYMULATOR IDEALNY")
         if noisy:
             print("Noisy try")
-            transpiled_noisy = transpile(circuit, sim_noisy)
+            transpiled_noisy = transpile(circuit, sim_noisy, optimization_level=3)
             counts_noisy = sim_noisy.run(transpiled_noisy, shots=1024).result().get_counts()
             # print(counts_noisy)
             # counts_noisy = {'1000': 470, '0000': 426, '1010': 11, '0001': 12, '0101': 5, '1110': 9, '0010': 20, '1100': 23, '0100': 25, '0110': 7, '1001': 12, '1011': 1, '1101': 3}
@@ -230,7 +153,7 @@ def factorize_N_quantum(N: int, noisy: bool = True):
         if noisy:
             plot_histogram(counts_noisy, ax=ax2, color='crimson', title=f"Odra 5 z Szumem (Próba #{attempt}, a={a})")
         plt.tight_layout()
-        plt.show()
+        # plt.show()
 
         if p_ideal or p_noisy:
             p_final = p_ideal if p_ideal else p_noisy
@@ -245,5 +168,14 @@ def factorize_N_quantum(N: int, noisy: bool = True):
 
 
 if __name__ == "__main__":
-    N_to_factor = 15
-    p_res, q_res = factorize_N_quantum(N=N_to_factor)
+    ps = [5]
+    qs = [7]
+    for p in ps:
+        for q in qs:
+            if p == q:
+                continue
+            N = p * q
+            print(f"Trying to factor N={N} (p={p}, q={q})")
+
+    # N_to_factor = 21
+            p_res, q_res = factorize_N_quantum(N=N)
