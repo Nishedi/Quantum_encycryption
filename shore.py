@@ -3,6 +3,7 @@ import random
 import copy
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 from fractions import Fraction
 
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, transpile
@@ -11,7 +12,7 @@ from qiskit_aer.noise import NoiseModel, ReadoutError, depolarizing_error
 from qiskit.transpiler import CouplingMap
 from qiskit.visualization import plot_histogram
 from qiskit.circuit.library import UnitaryGate
-from simulators import get_odra5_backend, get_iqm_backend
+from simulators import get_odra5_backend_extended, get_iqm_backend
 
 
 def c_amodN(a: int, power: int, N: int) -> QuantumCircuit:
@@ -140,8 +141,11 @@ def factorize_N_quantum(N: int, noisy: bool = True):
             p_ideal, q_ideal, _ = analyze_quantum_counts(counts_ideal, N, n_count, a, "SYMULATOR IDEALNY")
         if noisy:
             print("Noisy try")
-            transpiled_noisy = transpile(circuit, sim_noisy, optimization_level=3)
+            # transpiled_noisy = transpile(circuit, sim_noisy, optimization_level=3)
+            transpiled_noisy = transpile(circuit, sim_noisy)
+            start_time = time.time()
             counts_noisy = sim_noisy.run(transpiled_noisy, shots=1024).result().get_counts()
+            end_time = time.time()
             # print(counts_noisy)
             # counts_noisy = {'1000': 470, '0000': 426, '1010': 11, '0001': 12, '0101': 5, '1110': 9, '0010': 20, '1100': 23, '0100': 25, '0110': 7, '1001': 12, '1011': 1, '1101': 3}
 
@@ -160,10 +164,10 @@ def factorize_N_quantum(N: int, noisy: bool = True):
             q_final = q_ideal if q_ideal else q_noisy
 
             print(f"N={N}: p = {p_final}, q = {q_final}")
-            print(f"{p_final} * {q_final} = {p_final * q_final} ({p_final * q_final == N})")
+            print(f"{p_final} * {q_final} = {p_final * q_final} ({p_final * q_final == N}) time: {end_time - start_time:.2f}s")
             return p_final, q_final
 
-        print(f"Fail")
+        print(f"Fail with time {end_time - start_time:.2f}s")
         attempt += 1
 
 
@@ -178,4 +182,5 @@ if __name__ == "__main__":
             print(f"Trying to factor N={N} (p={p}, q={q})")
 
     # N_to_factor = 21
+
             p_res, q_res = factorize_N_quantum(N=N)
