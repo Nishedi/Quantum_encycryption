@@ -68,38 +68,6 @@ def build_shor_circuit(N: int, a: int) -> QuantumCircuit:
 
     return qc
 
-
-def analyze_quantum_counts(counts: dict, N: int, n_count: int, a: int, label: str):
-    sorted_counts = sorted(counts.items(), key=lambda x: x[1], reverse=True)
-    for bitstring, count in sorted_counts:
-        meas_int = int(bitstring, 2)
-        if meas_int == 0:
-            continue
-
-        phase = meas_int / (2 ** n_count)
-        frac = Fraction(phase).limit_denominator(N)
-        candidate_r = frac.denominator
-
-        if candidate_r % 2 != 0:
-            continue
-
-        if pow(a, candidate_r // 2, N) == (N - 1):
-            continue
-
-        g1 = math.gcd(pow(a, candidate_r // 2, N) - 1, N)
-        g2 = math.gcd(pow(a, candidate_r // 2, N) + 1, N)
-
-        if g1 not in [1, N] and g2 not in [1, N]:
-            p_val = min(g1, g2)
-            q_val = max(g1, g2)
-            print(f"r = {candidate_r}")
-            print(f"p = {p_val}, q = {q_val}")
-            return p_val, q_val, candidate_r
-
-    print(f"Fail - no valid r found in {label} counts.")
-    return None, None, None
-
-
 def factorize_N_quantum(N: int, noisy: bool = True):
     n_count = math.ceil(math.log2(N + 1))
     sim_ideal = AerSimulator()
@@ -169,6 +137,38 @@ def factorize_N_quantum(N: int, noisy: bool = True):
 
         print(f"Fail with time {end_time - start_time:.2f}s")
         attempt += 1
+def analyze_quantum_counts(counts: dict, N: int, n_count: int, a: int, label: str):
+    sorted_counts = sorted(counts.items(), key=lambda x: x[1], reverse=True)
+    for bitstring, count in sorted_counts:
+        meas_int = int(bitstring, 2)
+        if meas_int == 0:
+            continue
+
+        phase = meas_int / (2 ** n_count)
+        frac = Fraction(phase).limit_denominator(N)
+        candidate_r = frac.denominator
+
+        if candidate_r % 2 != 0:
+            continue
+
+        if pow(a, candidate_r // 2, N) == (N - 1):
+            continue
+
+        g1 = math.gcd(pow(a, candidate_r // 2, N) - 1, N)
+        g2 = math.gcd(pow(a, candidate_r // 2, N) + 1, N)
+
+        if g1 not in [1, N] and g2 not in [1, N]:
+            p_val = min(g1, g2)
+            q_val = max(g1, g2)
+            print(f"r = {candidate_r}")
+            print(f"p = {p_val}, q = {q_val}")
+            return p_val, q_val, candidate_r
+
+    print(f"Fail - no valid r found in {label} counts.")
+    return None, None, None
+
+
+
 
 
 if __name__ == "__main__":

@@ -35,17 +35,37 @@ def c_amodN(a: int, power: int, N: int) -> QuantumCircuit:
     qc.append(gate, range(n))
     return qc.control(1)
 
+def qft_dagger(n: int) -> QuantumCircuit:
+    qc = QuantumCircuit(n)
+    for qubit in range(n // 2):
+        qc.swap(qubit, n - qubit - 1)
+    for j in range(n):
+        for m in range(j):
+            qc.cp(-np.pi / float(2 ** (j - m)), m, j)
+        qc.h(j)
+    qc.name = "QFT_dagger"
+    return qc
 
 
+def build_shor_circuit(N: int, a: int) -> QuantumCircuit:
+    n_count = math.ceil(math.log2(N + 1))
+    qr_up = QuantumRegister(n_count, name='up')
+    qr_down = QuantumRegister(n_count, name='down')
+    cr = ClassicalRegister(n_count, name='meas')
+    qc = QuantumCircuit(qr_up, qr_down, cr)
 
+    for q in range(n_count):
+        qc.h(qr_up[q])
 
+    qc.x(qr_down[0])
 
+    for q in range(n_count):
+        qc.append(c_amodN(a, q, N), [qr_up[q]] + qr_down[:])
 
+    qc.append(qft_dagger(n_count), qr_up)
+    qc.measure(qr_up, cr)
 
-
-
-
-
+    return qc
 
 
 def build_iqpe_shor_circuit(N: int, a: int) -> QuantumCircuit:
@@ -109,7 +129,7 @@ def analyze_iqpe_counts(counts: dict, N: int, n_count: int, a: int, label: str, 
     return None, None, None
 
 
-def factorize_N_iqpe(N: int, ideal: bool = False, noisy: bool = False, real_odra: bool = False, real_sirius: bool = False, a: int = None, verbose: bool = True):
+def factorize_N_iqpe(N: int, IQPE: bool = True, ideal: bool = False, noisy: bool = False, real_odra: bool = False, real_sirius: bool = False, a: int = None, verbose: bool = True):
     random_a = False if a else True
     n_count = math.ceil(math.log2(N + 1))
     sim_ideal = AerSimulator()
@@ -148,10 +168,16 @@ def factorize_N_iqpe(N: int, ideal: bool = False, noisy: bool = False, real_odra
                 print(f"Luck: NWD({a}, {N}) = {gcd_val} > 1 (no quantum needed)")
                 print(f"N={N}: p = {p_found}, q = {q_found}")
             return p_found, q_found, None
-
-        circuit = build_iqpe_shor_circuit(N=N, a=a)
+        # if IQPE:
+        #     circuit = build_iqpe_shor_circuit(N=N, a=a)
+        # else:
+        circuit = build_shor_circuit(N=N, a=a)
         if verbose:
-            print(f"IQPE circuit builded - {circuit.num_qubits} required.")
+            if IQPE:
+                print(f"IQPE circuit builded - {circuit.num_qubits} required.")
+            else:
+                print(f"Shor circuit builded - {circuit.num_qubits} required.")
+
 
         p_ideal, q_ideal, p_noisy, q_noisy, p_real_odra, q_real_odra, p_real_sirius, q_real_sirius = None, None, None, None, None, None, None, None
 
@@ -175,7 +201,7 @@ def factorize_N_iqpe(N: int, ideal: bool = False, noisy: bool = False, real_odra
             p_real_odra, q_real_odra, _ = analyze_iqpe_counts(counts_real_odra, N, n_count, a, "REALNY (IQM Odra5)", verbose=verbose)
 
         if real_sirius:
-            transpiled_real_sirius = transpile(circuit, real_sirius_device, optimization_level=3)
+            transpiled_real_sirius = transpile(circuit, real_sirius_device, optimization_level=1)
             print("Starting computation on QPU...")
             start_time = time.time()
             counts_real_sirius = real_sirius_device.run(transpiled_real_sirius, shots=128).result().get_counts()
@@ -219,7 +245,7 @@ if __name__ == "__main__":
             for _ in range(repeats):
                 # print(f"Trying to factor N={N} (p={p}, q={q}, a={a}) using IQPE")
 
-                p_res, q_res, r_time = factorize_N_iqpe(N=N, real_sirius=True,a=a, verbose=False)
+                p_res, q_res, r_time = factorize_N_iqpe(N=N, IQPE=False, real_sirius=True,a=a, verbose=True)
                 if p_res is not None and q_res is not None and r_time is not None:
                     print(f"Result: p = {p_res}, q = {q_res}, time = {r_time:.2f}s")
                 else:

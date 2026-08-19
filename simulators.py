@@ -241,7 +241,7 @@ def get_odra5_backend_extended(n_qubits: int = 8):
 
 def get_sirius_real_backend():
     from iqm.qiskit_iqm import IQMProvider
-    provider = IQMProvider("https://resonance.iqm.tech/", quantum_computer="sirius",
-                           token="XXXXXXXXXX")
+    provider = IQMProvider("https://resonance.iqm.tech/", quantum_computer="emerald",
+                           token=input("Wprowadź token IQM: "))
     backend = provider.get_backend()
     return backend
