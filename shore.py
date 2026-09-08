@@ -228,7 +228,7 @@ def factorize_N_quantum(N: int, ideal: bool = False, real_sirius: bool = False, 
 if __name__ == "__main__":
     ps = [5]
     qs = [7]
-    repeats = [2,3,4,6,8,10,11,13,14,16,17,18,19,20,21,22,23,24,26,27,28,29,31,32,33,34]
+    repeats = [6,8,13,22,27,29]
 
     for p in ps:
         for q in qs:
@@ -237,6 +237,29 @@ if __name__ == "__main__":
             N = p * q
             print(f"Trying to factor N={N} (p={p}, q={q})")
             for r in repeats:
-                p_res, q_res = factorize_N_quantum(N=N, a_set=r, noisy=True)
+                p_res, q_res = factorize_N_quantum(N=N, a_set=r, real_sirius=True)
+
+    ps = [3]
+    qs = [11]
+    repeats = [10,23]
+    for p in ps:
+        for q in qs:
+            if p == q:
+                continue
+            N = p * q
+            print(f"Trying to factor N={N} (p={p}, q={q})")
+            for r in repeats:
+                p_res, q_res = factorize_N_quantum(N=N, a_set=r, real_sirius=True)
+
+
             # for r in repeats:
             #     p_res, q_res = factorize_N_quantum(N=N, a_set=r, real_sirius=True)
+
+            # 33,10,FakeSirius,35455,43644,24913,18731,None
+            # 33,23,FakeSirius,31529,38847,22164,16683,Non
+            # 35,6,FakeSirius,35493,43678,24931,18747,None
+            # 35,8,FakeSirius,70976,87291,49828,37463,None
+            # 35,13,FakeSirius,70972,87287,49826,37461,None
+            # 35,22,FakeSirius,71020,87335,49850,37485,None
+            # 35,27,FakeSirius,71020,87335,49850,37485,None
+            # 35,29,FakeSirius,35522,43701,24944,18757,None
