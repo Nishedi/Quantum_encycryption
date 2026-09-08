@@ -237,6 +237,6 @@ if __name__ == "__main__":
             N = p * q
             print(f"Trying to factor N={N} (p={p}, q={q})")
             for r in repeats:
-                p_res, q_res = factorize_N_quantum(N=N, a_set=r, real_sirius=True)
+                p_res, q_res = factorize_N_quantum(N=N, a_set=r, noisy=True)
             # for r in repeats:
             #     p_res, q_res = factorize_N_quantum(N=N, a_set=r, real_sirius=True)
