@@ -18,3 +18,4 @@ N,a,device,circuit_depth,total_gates,single_q_gates,two_q_gates,circuit_duration
 21,13,FakeSirius,8445,10434,5964,4470,None
 21,19,FakeSirius,41979,51839,29637,22202,None
 33,10,FakeSirius,35455,43644,24913,18731,None
+33,23,FakeSirius,31529,38847,22164,16683,None
