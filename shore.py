@@ -190,7 +190,7 @@ def factorize_N_quantum(N: int, ideal: bool = False, real_sirius: bool = False, 
 
 
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
-        if not noisy:
+        if ideal:
             plot_histogram(counts_ideal, ax=ax1, color='midnightblue', title=f"Idealny Symulator (Próba #{attempt}, a={a})")
         if noisy:
             plot_histogram(counts_noisy, ax=ax2, color='crimson', title=f"Odra 5 z Szumem (Próba #{attempt}, a={a})")
@@ -227,14 +227,16 @@ def factorize_N_quantum(N: int, ideal: bool = False, real_sirius: bool = False, 
 
 if __name__ == "__main__":
     ps = [3]
-    qs = [5]
-    repeats = [2,4,7,8,11,13]
-    for r in repeats:
-        for p in ps:
-            for q in qs:
-                if p == q:
-                    continue
-                N = p * q
-                print(f"Trying to factor N={N} (p={p}, q={q})")
-                # p_res, q_res = factorize_N_quantum(N=N, a_set=r, noisy=True)
-                p_res, q_res = factorize_N_quantum(N=N, a_set=r, real_sirius=True)
+    qs = [11]
+    repeats = [19,20,21,22,23,24,25,26,27,28,29,30,31,32]
+
+    for p in ps:
+        for q in qs:
+            if p == q:
+                continue
+            N = p * q
+            print(f"Trying to factor N={N} (p={p}, q={q})")
+            for r in repeats:
+                p_res, q_res = factorize_N_quantum(N=N, a_set=r, noisy=True)
+            # for r in repeats:
+            #     p_res, q_res = factorize_N_quantum(N=N, a_set=r, real_sirius=True)
