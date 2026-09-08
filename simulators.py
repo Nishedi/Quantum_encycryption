@@ -1,17 +1,19 @@
 import json
 import re
 from typing import Dict, Tuple
-
+import os
+from dotenv import load_dotenv
 from qiskit import QuantumCircuit, transpile
 from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel, ReadoutError, depolarizing_error
 from qiskit.transpiler import CouplingMap
-
+from iqm.qiskit_iqm import IQMProvider
 
 class IQMNoiseBuilder:
     def __init__(self, json_path: str):
         with open(json_path, 'r', encoding='utf-8') as f:
             self.data = json.load(f)
+            # self.data = json.load(f)
 
         self.readout_0to1: Dict[str, float] = {}
         self.readout_1to0: Dict[str, float] = {}
@@ -101,12 +103,38 @@ class IQMNoiseBuilder:
         return nm, coupling_map, self.mapping
 
 
-def get_iqm_backend(json_path: str = "calibation_data.json"):
+def get_real_iqm_backend(env_file="token.env", verbose: bool = False):
+    if os.path.exists(env_file):
+        load_dotenv(env_file)
+    else:
+        print("BRAK TOKENU!")
+        raise ValueError("Brak Tokenu")
+
+    server_url = os.getenv("SERVER")
+
+    if not server_url:
+        raise ValueError("Brak zmiennej SERVER w środowisku!")
+    if verbose:
+        print(f"Łączenie z serwerem: {server_url}...")
+
+    provider = IQMProvider(server_url)
+    os.environ["IQM_CLIENT_REQUEST_TIMEOUT"] = "100"
+    backend = provider.get_backend()
+    backend.client._request_timeout = 100
+    backend.options.update_options(timeout=100)
+    if verbose:
+        print(f"Połączono pomyślnie z: {backend.name}")
+    return backend
+
+def get_iqm_backend(json_path: str = "calibation_data.json", verbose: bool = False):
     builder = IQMNoiseBuilder(json_path)
     noise_model, coupling_map, mapping_info = builder.build_model()
 
     sim = AerSimulator(noise_model=noise_model)
     sim.set_options(noise_model=noise_model, coupling_map=coupling_map)
+    if verbose:
+        print(f"[INFO] Pomyślnie załadowano szum sprzętowy IQM z pliku '{json_path}'.")
+        print(f"[INFO] Znaleziono {len(mapping_info) - 1} kubitów peryferyjnych połączonych z centralnym Hubem (COMPR1).")
 
     print(f"Noise model loaded with {len(mapping_info) - 1} qubits (including COMPR1).")
 
@@ -199,7 +227,7 @@ def extend_odra_noise_model(base_noise_model: NoiseModel, base_coupling_list: li
     return extended_nm, extended_coupling
 
 
-def get_odra5_backend(n_qubits: int = 8):
+def get_odra5_backend_extended(n_qubits: int = 8):
     noise_model = create_synthetic_odra5_noise()
     base_coupling_list = [[0, 2], [1, 2], [2, 3], [2, 4], [2, 0], [2, 1], [3, 2], [4, 2]]
 
@@ -215,7 +243,7 @@ def get_odra5_backend(n_qubits: int = 8):
 
 def get_sirius_real_backend():
     from iqm.qiskit_iqm import IQMProvider
-    provider = IQMProvider("https://resonance.iqm.tech/", quantum_computer="sirius",
+    provider = IQMProvider("https://resonance.iqm.tech/", quantum_computer="emerald",
                            token=input("Wprowadź token IQM: "))
     backend = provider.get_backend()
     return backend

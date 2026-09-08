@@ -132,6 +132,7 @@ def factorize_N_quantum(N: int, ideal: bool = False, real_sirius: bool = False, 
 
         circuit = build_shor_circuit(N=N, a=a)
 
+
         p_ideal,q_ideal, p_noisy, q_noisy = None, None, None, None
 
         if ideal:
@@ -189,7 +190,7 @@ def factorize_N_quantum(N: int, ideal: bool = False, real_sirius: bool = False, 
 
 
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
-        if ideal:
+        if not noisy:
             plot_histogram(counts_ideal, ax=ax1, color='midnightblue', title=f"Idealny Symulator (Próba #{attempt}, a={a})")
         if noisy:
             plot_histogram(counts_noisy, ax=ax2, color='crimson', title=f"Odra 5 z Szumem (Próba #{attempt}, a={a})")
