@@ -212,7 +212,6 @@ def run_shor_attack_dual(N: int, ciphertext: int, e: int, msg_original: int):
         if not available_a:
             print("[BŁĄD] Wypróbowano wszystkie możliwe wartości 'a'.")
             break
-
         a = random.choice(available_a)
         tested_a.add(a)
         print(f"a = {a}")

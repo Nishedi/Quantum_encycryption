@@ -11,7 +11,8 @@ from qiskit_aer.noise import NoiseModel, ReadoutError, depolarizing_error
 from qiskit.transpiler import CouplingMap
 from qiskit.visualization import plot_histogram
 from qiskit.circuit.library import UnitaryGate
-from simulators import get_odra5_backend, get_iqm_backend
+from simulators import get_iqm_backend, get_sirius_real_backend
+import time
 
 
 def c_amodN(a: int, power: int, N: int) -> QuantumCircuit:
@@ -99,7 +100,7 @@ def analyze_quantum_counts(counts: dict, N: int, n_count: int, a: int, label: st
     return None, None, None
 
 
-def factorize_N_quantum(N: int, noisy: bool = True):
+def factorize_N_quantum(N: int, ideal: bool = False, real_sirius: bool = False, noisy: bool = False, a_set = None):
     n_count = math.ceil(math.log2(N + 1))
     sim_ideal = AerSimulator()
     # sim_noisy = get_odra5_backend(n_qubits=2 * n_count)
@@ -114,9 +115,11 @@ def factorize_N_quantum(N: int, noisy: bool = True):
         if not available_a:
             print("[Error] Every a tried.")
             return None, None
-
-        a = random.choice(available_a)
-        tested_a.add(a)
+        if a_set is None:
+            a = random.choice(available_a)
+            tested_a.add(a)
+        else:
+            a = a_set
         print(f"a = {a}")
 
         gcd_val = math.gcd(a, N)
@@ -129,26 +132,64 @@ def factorize_N_quantum(N: int, noisy: bool = True):
 
         circuit = build_shor_circuit(N=N, a=a)
 
-
         p_ideal,q_ideal, p_noisy, q_noisy = None, None, None, None
 
-        if not noisy:
+        if ideal:
             print("Ideal try")
             transpiled_ideal = transpile(circuit, sim_ideal)
             counts_ideal = sim_ideal.run(transpiled_ideal, shots=1024).result().get_counts()
-
             p_ideal, q_ideal, _ = analyze_quantum_counts(counts_ideal, N, n_count, a, "SYMULATOR IDEALNY")
+        single_q_gates = 0
+        two_q_gates = 0
+        total_gates = 0
+        circuit_duration_dt = None
+        circuit_depth = 0
         if noisy:
             print("Noisy try")
-            transpiled_noisy = transpile(circuit, sim_noisy, optimization_level=3)
+            transpilation_time_start = time.time()
+            transpiled_noisy = transpile(circuit, sim_noisy)
+            transpilation_time = time.time() - transpilation_time_start
+            circuit_depth = transpiled_noisy.depth()
+            for instruction in transpiled_noisy.data:
+                op = instruction.operation if hasattr(instruction, 'operation') else instruction[0]
+
+                if op.name not in ['measure', 'barrier', 'delay']:
+                    total_gates += 1
+                    if op.num_qubits == 1:
+                        single_q_gates += 1
+                    elif op.num_qubits == 2:
+                        two_q_gates += 1
+
+            circuit_duration_dt = transpiled_noisy.duration
+
+            # return
+            run_time_start = time.time()
             counts_noisy = sim_noisy.run(transpiled_noisy, shots=1024).result().get_counts()
-            # print(counts_noisy)
-            # counts_noisy = {'1000': 470, '0000': 426, '1010': 11, '0001': 12, '0101': 5, '1110': 9, '0010': 20, '1100': 23, '0100': 25, '0110': 7, '1001': 12, '1011': 1, '1101': 3}
+            run_time = time.time() - run_time_start
+            print(f"Transpilation time: {transpilation_time:.4f} seconds, Run time: {run_time:.4f} seconds")
 
             p_noisy, q_noisy, _ = analyze_quantum_counts(counts_noisy, N, n_count, a, "SZUMOWY (ODRA 5)")
 
+        if real_sirius:
+            real_sirius_device = get_sirius_real_backend()
+            transpiled_real_sirius = transpile(circuit, real_sirius_device)
+            circuit_depth = transpiled_real_sirius.depth()
+            for instruction in transpiled_real_sirius.data:
+                op = instruction.operation if hasattr(instruction, 'operation') else instruction[0]
+
+                if op.name not in ['measure', 'barrier', 'delay']:
+                    total_gates += 1
+                    if op.num_qubits == 1:
+                        single_q_gates += 1
+                    elif op.num_qubits == 2:
+                        two_q_gates += 1
+
+            circuit_duration_dt = transpiled_real_sirius.duration
+
+
+
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
-        if not noisy:
+        if ideal:
             plot_histogram(counts_ideal, ax=ax1, color='midnightblue', title=f"Idealny Symulator (Próba #{attempt}, a={a})")
         if noisy:
             plot_histogram(counts_noisy, ax=ax2, color='crimson', title=f"Odra 5 z Szumem (Próba #{attempt}, a={a})")
@@ -161,21 +202,38 @@ def factorize_N_quantum(N: int, noisy: bool = True):
 
             print(f"N={N}: p = {p_final}, q = {q_final}")
             print(f"{p_final} * {q_final} = {p_final * q_final} ({p_final * q_final == N})")
-            return p_final, q_final
 
+            with open ("circuit_metrics.csv", "a") as f:
+                f.write(f"{N},{a},FakeSirius,{circuit_depth},{total_gates},{single_q_gates},{two_q_gates}")
+                if circuit_duration_dt is not None:
+                    f.write(f",{circuit_duration_dt}\n")
+                else:
+                    f.write(",None\n")
+
+            return p_final, q_final
+        if real_sirius:
+            with open ("circuit_metrics.csv", "a") as f:
+                f.write(f"{N},{a},RealSirius,{circuit_depth},{total_gates},{single_q_gates},{two_q_gates}")
+                if circuit_duration_dt is not None:
+                    f.write(f",{circuit_duration_dt}\n")
+                else:
+                    f.write(",None\n")
+        if a_set:
+            return -1, -1
         print(f"Fail")
         attempt += 1
 
 
 if __name__ == "__main__":
-    ps = [5]
-    qs = [7]
-    for p in ps:
-        for q in qs:
-            if p == q:
-                continue
-            N = p * q
-            print(f"Trying to factor N={N} (p={p}, q={q})")
-
-    # N_to_factor = 21
-            p_res, q_res = factorize_N_quantum(N=N)
+    ps = [3]
+    qs = [5]
+    repeats = [2,4,7,8,11,13]
+    for r in repeats:
+        for p in ps:
+            for q in qs:
+                if p == q:
+                    continue
+                N = p * q
+                print(f"Trying to factor N={N} (p={p}, q={q})")
+                # p_res, q_res = factorize_N_quantum(N=N, a_set=r, noisy=True)
+                p_res, q_res = factorize_N_quantum(N=N, a_set=r, real_sirius=True)

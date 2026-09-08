@@ -108,8 +108,7 @@ def get_iqm_backend(json_path: str = "calibation_data.json"):
     sim = AerSimulator(noise_model=noise_model)
     sim.set_options(noise_model=noise_model, coupling_map=coupling_map)
 
-    print(f"[INFO] Pomyślnie załadowano szum sprzętowy IQM z pliku '{json_path}'.")
-    print(f"[INFO] Znaleziono {len(mapping_info) - 1} kubitów peryferyjnych połączonych z centralnym Hubem (COMPR1).")
+    print(f"Noise model loaded with {len(mapping_info) - 1} qubits (including COMPR1).")
 
     return sim
 
@@ -213,3 +212,10 @@ def get_odra5_backend(n_qubits: int = 8):
     noisy_sim.set_options(noise_model=extended_nm, coupling_map=coupling_map)
 
     return noisy_sim
+
+def get_sirius_real_backend():
+    from iqm.qiskit_iqm import IQMProvider
+    provider = IQMProvider("https://resonance.iqm.tech/", quantum_computer="sirius",
+                           token=input("Wprowadź token IQM: "))
+    backend = provider.get_backend()
+    return backend
