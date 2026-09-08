@@ -226,9 +226,9 @@ def factorize_N_quantum(N: int, ideal: bool = False, real_sirius: bool = False, 
 
 
 if __name__ == "__main__":
-    ps = [3]
-    qs = [11]
-    repeats = [19,20,21,22,23,24,25,26,27,28,29,30,31,32]
+    ps = [5]
+    qs = [7]
+    repeats = [2,3,4,6,8,10,11,13,14,16,17,18,19,20,21,22,23,24,26,27,28,29,31,32,33,34]
 
     for p in ps:
         for q in qs:
@@ -237,6 +237,6 @@ if __name__ == "__main__":
             N = p * q
             print(f"Trying to factor N={N} (p={p}, q={q})")
             for r in repeats:
-                p_res, q_res = factorize_N_quantum(N=N, a_set=r, noisy=True)
+                p_res, q_res = factorize_N_quantum(N=N, a_set=r, real_sirius=True)
             # for r in repeats:
             #     p_res, q_res = factorize_N_quantum(N=N, a_set=r, real_sirius=True)
